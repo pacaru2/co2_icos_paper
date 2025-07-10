@@ -4,7 +4,6 @@
 # Title       : Hyperparameter Tuning via Random Search for 7 Key Stations
 # Description : Performs random search over multiple time series models using
 #               CO₂ daily data from representative stations.
-#               Part of the CO2 Forecast study (Pablo Catret, June 2025).
 # Author      : Pablo Catret
 # =============================================================================
 
