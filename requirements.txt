@@ -1,0 +1,13 @@
+numpy
+pandas
+tqdm
+joblib
+matplotlib
+seaborn
+scipy
+statsmodels
+scikit-posthocs
+kmodes
+scikit-learn
+lightgbm
+u8darts[all]
