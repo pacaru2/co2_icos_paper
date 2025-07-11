@@ -43,8 +43,8 @@ TXT_ANTIGUOS = DIR_DATA / "paths_datos_antiguos_2024.txt"
 
 # --- NUEVO BLOQUE ------------------------------------------------------------
 BASE_HP_DIR = Path("SeleccionHiperparametros")
-DIR_PRED    = BASE_HP_DIR / "Predicciones"          # <— predicciones aquí
-DIR_HP      = BASE_HP_DIR / "Hiperparametros"       # <— logs aquí
+DIR_PRED    = BASE_HP_DIR / "Predicciones"     
+DIR_HP      = BASE_HP_DIR / "Hiperparametros"  
 DIR_PRED.mkdir(parents=True, exist_ok=True)
 # -----------------------------------------------------------------------------
 
