@@ -31,20 +31,29 @@ from darts.models import (
 # =============================================================================
 # Configuration and Constants
 # =============================================================================
+
 REPRESENTATIVES = [
     "GAT 216.0", "HPB 131.0", "KRE 50.0", "OXK 23.0",
     "JFJ 13.9", "TRN 50.0", "JUE 120.0",
 ]
-DIR_DATA      = Path("data")
-TXT_NUEVOS    = DIR_DATA / "paths_datos_nuevos_2024.txt"
-TXT_ANTIGUOS  = DIR_DATA / "paths_datos_antiguos_2024.txt"
-LOG_CSV       = Path("resultados/tuning_log.csv")
-DIR_MODEL     = Path("modelos_tuning");     DIR_MODEL.mkdir(parents=True, exist_ok=True)
-DIR_PRED      = Path("resultados/predicciones"); DIR_PRED.mkdir(exist_ok=True, parents=True)
 
-N_ITER        = 20
-SEED          = 42
+DIR_DATA   = Path("data")
+TXT_NUEVOS = DIR_DATA / "paths_datos_nuevos_2024.txt"
+TXT_ANTIGUOS = DIR_DATA / "paths_datos_antiguos_2024.txt"
+
+# --- NUEVO BLOQUE ------------------------------------------------------------
+BASE_HP_DIR = Path("SeleccionHiperparametros")
+DIR_PRED    = BASE_HP_DIR / "Predicciones"          # <— predicciones aquí
+DIR_HP      = BASE_HP_DIR / "Hiperparametros"       # <— logs aquí
+DIR_PRED.mkdir(parents=True, exist_ok=True)
+# -----------------------------------------------------------------------------
+
+DIR_MODEL = Path("modelos_tuning"); DIR_MODEL.mkdir(parents=True, exist_ok=True)
+
+N_ITER = 20
+SEED   = 42
 random.seed(SEED); np.random.seed(SEED)
+
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -230,6 +239,18 @@ MODEL_FACTORY = {
 def tune_station(name: str, path_old: Path, path_new: Path) -> None:
     logging.info(f"=== {name} ===")
 
+    abb = name.split()[0][:3].upper()           # GAT 216.0  → "GAT"
+    log_dir = DIR_HP / abb
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_csv = log_dir / "tuning_log.csv"
+
+    if log_csv.exists():
+        tuning_log = pd.read_csv(log_csv)
+    else:
+        tuning_log = pd.DataFrame(
+            columns=["Station", "Model", "MSE", "Params", "PredPath"]
+        )
+
     serie = load_daily_series(path_old, path_new)
     if len(serie) < 1100:
         logging.warning(f"{name}: serie demasiado corta ({len(serie)} d) – se omite")
@@ -240,10 +261,6 @@ def tune_station(name: str, path_old: Path, path_new: Path) -> None:
     train_val, test = serie_s[:-365], serie_s[-365:]
     train, val       = train_val[:-365], train_val[-365:]
 
-    if LOG_CSV.exists():
-        tuning_log = pd.read_csv(LOG_CSV)
-    else:
-        tuning_log = pd.DataFrame(columns=["Station","Model","MSE","Params","PredPath"])
 
     for model_name in MODEL_FACTORY:
         best_mse   = tuning_log.loc[
@@ -284,7 +301,7 @@ def tune_station(name: str, path_old: Path, path_new: Path) -> None:
         if best_row is not None:
             tuning_log = tuning_log[~((tuning_log["Station"]==name)&(tuning_log["Model"]==model_name))]
             tuning_log = pd.concat([tuning_log, pd.DataFrame([best_row])], ignore_index=True)
-            tuning_log.to_csv(LOG_CSV, index=False)
+            tuning_log.to_csv(log_csv, index=False)
             logging.info(f"{name} · {model_name} – nuevo best MSE={best_mse:.4f}")
 
 
