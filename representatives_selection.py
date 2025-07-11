@@ -64,7 +64,7 @@ PATH_NOMBRES = DIR_DATA / "estaciones_alturas.txt"
 DIR_RESULTADOS = Path("resultados")
 DIR_RESULTADOS.mkdir(exist_ok=True, parents=True)
 PATH_REPRESENTANTES = DIR_RESULTADOS / "representantes_por_cluster.csv"
-PATH_RESUMEN = DIR_RESULTADOS / "resumen_estaciones.csv"
+PATH_RESUMEN = DIR_DATA / "resumen_estaciones.csv"
 
 # ==============================================================================
 # 1. BUILD FEATURE TABLE
