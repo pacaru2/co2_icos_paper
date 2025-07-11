@@ -282,8 +282,8 @@ def tune_station(name: str, path_old: Path, path_new: Path) -> None:
 
             if cur_mse < best_mse:
                 best_mse = cur_mse
-                pred_val  = scaler.inverse_transform(pred).pd_series()
-                real_val  = scaler.inverse_transform(val).pd_series()
+                pred_val  = scaler.inverse_transform(pred).to_series()
+                real_val  = scaler.inverse_transform(val).to_series()
                 df_pred   = pd.DataFrame({"real": real_val, "pred": pred_val})
 
                 mpath = DIR_MODEL / f"{name.replace(' ','_')}_{model_name}.pkl"
