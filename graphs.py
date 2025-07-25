@@ -1,20 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# Title       : Complete Visualization of CO₂ Series for ICOS-Atmosphere
-# Description : 
-#   1. Forecast vs. Actual (test only) for selected stations:
-#      - Loads predictions from CSVs: <Station>_<Model>_TEST.csv
-#      - Uses only the originally trained models (see EXPECTED_MODEL)
-#      - Generates:
-#         * forecast_vs_actual_all_stations_test_only.png
-#         * boxplot_prediction_errors.png
-# 
-#   2. Seasonal Cycle (based on raw data):
-#      - Loads raw (old + new) files listed in paths_datos_*.txt
-#      - Computes mean CO₂ by Day-of-Year and smooths with 7-day rolling avg
-#      - Plots each station including land cover info
-#      - Generates:
-#         * stations_co2_mean_by_day_ordered.jpg
+# Title       : Visualization of CO₂ Series for ICOS-Atmosphere
 # Author      : Pablo Catret
 # =============================================================================
 
@@ -373,7 +359,6 @@ def _radar_from_pivot(ax, df_pivot, colors):
     N = len(cats)
     angles = [n / float(N) * 2 * np.pi for n in range(N)] + [0]
 
-    # líneas radiales (97-100)
     for ang in angles[:-1]:
         ax.plot([ang, ang], [97, 100], color='black', lw=3, alpha=0.5)
 
@@ -386,14 +371,13 @@ def _radar_from_pivot(ax, df_pivot, colors):
         ax.fill(angles, vals, color=color, alpha=0.1)
         handles.append(line); labels.append(row['Model'])
 
-    # estética
     ax.set_ylim(97, 100)
     ax.spines['polar'].set_visible(False)
     radial_ticks = [97.5, 98, 98.5, 99, 99.5, 100]
     ax.set_yticks(radial_ticks)
-    ax.set_yticklabels([f'{t:.1f}%' for t in radial_ticks], size=24)
+    ax.set_yticklabels([f'{t:.1f}%' for t in radial_ticks], size=28, fontweight='bold')
     ax.set_xticks(angles[:-1])
-    ax.set_xticklabels(cats, size=30)
+    ax.set_xticklabels(cats, size=36, fontweight='bold')
     for tick in ax.get_xticklabels():
         tick.set_y(tick.get_position()[1] - 0.14)
 
@@ -409,7 +393,7 @@ def _plot_all_radars(pivots):
     handles, labels = _radar_from_pivot(axs[0], pivots['ESA'], colors)
     _radar_from_pivot(axs[1], pivots['Koppen'], colors)
     fig.legend(handles, labels, loc='lower center',
-               bbox_to_anchor=(0.5, 0.125), ncol=len(labels), fontsize=25)
+               bbox_to_anchor=(0.5, 0.125), ncol=len(labels)/2, prop={'size': 40, 'weight': 'bold'})
     plt.tight_layout(rect=[0, 0.00, 1, 1]); plt.subplots_adjust(wspace=0.5)
     plt.savefig(GRAPH_DIR / 'radar_esa_koppen.png', dpi=500, bbox_inches='tight')
     plt.close()
@@ -419,7 +403,7 @@ def _plot_all_radars(pivots):
     handles, labels = _radar_from_pivot(axs[0], pivots['level_group'], colors)
     _radar_from_pivot(axs[1], pivots['latitude_group'], colors)
     fig.legend(handles, labels, loc='lower center',
-               bbox_to_anchor=(0.5, 0.125), ncol=len(labels), fontsize=25)
+               bbox_to_anchor=(0.5, 0.125), ncol=len(labels)/2, prop={'size': 40, 'weight': 'bold'})
     plt.tight_layout(rect=[0, 0.00, 1, 1]); plt.subplots_adjust(wspace=0.5)
     plt.savefig(GRAPH_DIR / 'radar_alt_lat.png', dpi=500, bbox_inches='tight')
     plt.close()
@@ -450,10 +434,10 @@ def _plot_all_radars(pivots):
     # poner etiquetas de ticks radiales manualmente
     theta = np.deg2rad(46)
     for t in ticks:
-        ax.text(theta, t, f'{t:.1f}%', ha='left', va='center', size=40)
+        ax.text(theta, t, f'{t:.1f}%', ha='left', va='center', size=44, fontweight='bold')
 
     ax.grid(ls='--', lw=1.5, alpha=0.5)
-    ax.set_xticks(angles[:-1]); ax.set_xticklabels(cats, size=50)
+    ax.set_xticks(angles[:-1]);ax.set_xticklabels(cats, size=45, fontweight='bold')
     for tick in ax.get_xticklabels():
         tick.set_y(tick.get_position()[1] - 0.14)
 
