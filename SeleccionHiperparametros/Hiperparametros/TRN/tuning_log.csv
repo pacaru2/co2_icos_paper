@@ -1,0 +1,10 @@
+Station,Model,MSE,Params,PredPath
+TRN 50.0,ETS,53.39502276122008,"{""seasonal_periods"": 365}",resultados/predicciones/TRN_50.0_ETS_VAL.csv
+TRN 50.0,Prophet,36.58591946111626,"{""seasonality_mode"": ""additive""}",resultados/predicciones/TRN_50.0_Prophet_VAL.csv
+TRN 50.0,LightGBM,33.55067380213325,"{""lags"": 365, ""output_chunk_length"": 365, ""learning_rate"": 0.031038089267410973, ""num_leaves"": 33, ""min_data_in_leaf"": 7}",resultados/predicciones/TRN_50.0_LightGBM_VAL.csv
+TRN 50.0,RF,40.07253162300645,"{""lags"": 365, ""output_chunk_length"": 365, ""n_estimators"": 240, ""max_depth"": 10}",resultados/predicciones/TRN_50.0_RF_VAL.csv
+TRN 50.0,NHiTS,32.62599361134319,"{""input_chunk_length"": 366, ""output_chunk_length"": 365, ""num_blocks"": 1, ""dropout"": 0.26115557095103004}",resultados/predicciones/TRN_50.0_NHiTS_VAL.csv
+TRN 50.0,TCN,34.97057594764176,"{""input_chunk_length"": 366, ""output_chunk_length"": 365, ""num_filters"": 8, ""kernel_size"": 2, ""dropout"": 0.1719270800507493}",resultados/predicciones/TRN_50.0_TCN_VAL.csv
+TRN 50.0,TiDE,45.39298464821737,"{""input_chunk_length"": 366, ""output_chunk_length"": 365, ""hidden_size"": 8, ""num_encoder_layers"": 2}",resultados/predicciones/TRN_50.0_TiDE_VAL.csv
+TRN 50.0,GRU,32.8300402732631,"{""input_chunk_length"": 366, ""output_chunk_length"": 365, ""hidden_dim"": 28, ""n_rnn_layers"": 1}",resultados/predicciones/TRN_50.0_GRU_VAL.csv
+TRN 50.0,LSTM,40.31153146124717,"{""input_chunk_length"": 366, ""output_chunk_length"": 365, ""hidden_dim"": 28, ""n_rnn_layers"": 1}",resultados/predicciones/TRN_50.0_LSTM_VAL.csv
