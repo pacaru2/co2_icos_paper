@@ -1,0 +1,10 @@
+Station,Model,MSE,Params,ModelPath,PredPath
+GAT 216.0,TiDE,26.905499690356216,"{""input_chunk_length"": 366, ""output_chunk_length"": 365, ""hidden_size"": 8, ""num_encoder_layers"": 2}",,resultados\predicciones\GAT_216.0_TiDE_VAL.csv
+GAT 216.0,GRU,21.941790834945053,"{""input_chunk_length"": 366, ""output_chunk_length"": 365, ""hidden_dim"": 63, ""n_rnn_layers"": 1}",,resultados\predicciones\GAT_216.0_GRU_VAL.csv
+GAT 216.0,Prophet,18.07076918054675,"{""seasonality_mode"": ""additive""}",,resultados\predicciones\GAT_216.0_Prophet_VAL.csv
+GAT 216.0,ETS,23.820711838625588,"{""seasonal_periods"": 365}",,resultados\predicciones\GAT_216.0_ETS_VAL.csv
+GAT 216.0,LightGBM,24.70113241608248,"{""lags"": 365, ""output_chunk_length"": 365, ""learning_rate"": 0.031038089267410973, ""num_leaves"": 33, ""min_data_in_leaf"": 7}",,resultados\predicciones\GAT_216.0_LightGBM_VAL.csv
+GAT 216.0,RF,25.748894804329986,"{""lags"": 365, ""output_chunk_length"": 365, ""n_estimators"": 85, ""max_depth"": 20}",,resultados\predicciones\GAT_216.0_RF_VAL.csv
+GAT 216.0,NHiTS,23.28566052765898,"{""input_chunk_length"": 366, ""output_chunk_length"": 365, ""num_blocks"": 1, ""dropout"": 0.11217415577734438}",,resultados\predicciones\GAT_216.0_NHiTS_VAL.csv
+GAT 216.0,TCN,22.527300630911373,"{""input_chunk_length"": 366, ""output_chunk_length"": 365, ""num_filters"": 32, ""kernel_size"": 3, ""dropout"": 0.09772114160578958}",,resultados\predicciones\GAT_216.0_TCN_VAL.csv
+GAT 216.0,LSTM,26.013158408750648,"{""input_chunk_length"": 366, ""output_chunk_length"": 365, ""hidden_dim"": 32, ""n_rnn_layers"": 1}",,resultados\predicciones\GAT_216.0_LSTM_VAL.csv
