@@ -265,6 +265,7 @@ def dias_validos_postpro(path_antiguo: Path, path_nuevo: Path, max_nan_days: int
     IQR = Q3 - Q1
     lower, upper = Q1 - 1.5 * IQR, Q3 + 1.5 * IQR
     logger.debug(f"► IQR filter: Q1={Q1:.2f}, Q3={Q3:.2f}, bounds=({lower:.2f}, {upper:.2f})")
+    nan_preiqr = df_d["co2"].isna().sum()
     before = len(df_d)
     df_d = df_d[(df_d["co2"] >= lower) & (df_d["co2"] <= upper)]
     outliers_eliminados = before - len(df_d)
@@ -279,7 +280,7 @@ def dias_validos_postpro(path_antiguo: Path, path_nuevo: Path, max_nan_days: int
     dias_validos = len(df_d)
     logger.info(f"✔ {path_antiguo.stem.split('_')[0]} – días válidos: {dias_validos}")
     
-    return dias_validos, outliers_eliminados
+    return dias_validos, outliers_eliminados, nan_preiqr
 
 
 logger = logging.getLogger(__name__)
@@ -371,6 +372,7 @@ def conteo_dias(df_feat: pd.DataFrame) -> pd.DataFrame:
 
     dias_validos_list: list[int] = []
     outliers_list: list[int] = []
+    nans_list: list[int] = []
 
     for row in df_feat.itertuples(index=False):
         nombre = row.NombreCompleto          
@@ -387,23 +389,27 @@ def conteo_dias(df_feat: pd.DataFrame) -> pd.DataFrame:
                 f"{'nuevo NO'   if nue_path  is None else ''}"
             )
             dias_validos_list.append(0)
+            outliers_list.append(0)
+            nans_list.append(0)
             continue
 
         try:
-            dias, outliers = dias_validos_postpro(ant_path, nue_path)
+            dias, outliers, n_nans = dias_validos_postpro(ant_path, nue_path)
         except Exception as e:
             logger.error(
                 f"Error procesando {nombre} "
                 f"(antiguo='{ant_path.name}', nuevo='{nue_path.name}'): {e}",
                 exc_info=True
             )
-            dias, outliers = 0, 0
+            dias, outliers, n_nans = 0, 0, 0
 
         dias_validos_list.append(dias)
         outliers_list.append(outliers)
+        nans_list.append(n_nans)
 
     df_feat["DiasValidos"] = dias_validos_list
     df_feat["OutliersEliminados"] = outliers_list
+    df_feat["NaNsDetectados"] = nans_list
 
     return df_feat
 
@@ -471,9 +477,9 @@ def main():
     df_reps.to_csv(PATH_REPRESENTANTES, index=False)
 
     logging.info(f"Representantes guardados en {PATH_REPRESENTANTES}")
-    df_feat[["NombreCompleto", "DiasValidos", "OutliersEliminados", "Cluster"]].to_csv(
+    df_feat[["NombreCompleto", "DiasValidos", "OutliersEliminados", "NaNsDetectados", "Cluster"]].to_csv(
         PATH_RESUMEN, index=False
-    )
+        )
     logging.info(f"Clusters guardados en {PATH_RESUMEN}")
 
     print("\n=== REPRESENTANTES SELECCIONADOS ===")
