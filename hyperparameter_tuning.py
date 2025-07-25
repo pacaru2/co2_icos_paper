@@ -43,8 +43,8 @@ TXT_ANTIGUOS = DIR_DATA / "paths_datos_antiguos_2024.txt"
 
 # --- NUEVO BLOQUE ------------------------------------------------------------
 BASE_HP_DIR = Path("SeleccionHiperparametros")
-DIR_PRED    = BASE_HP_DIR / "Predicciones"     
-DIR_HP      = BASE_HP_DIR / "Hiperparametros"  
+DIR_PRED    = BASE_HP_DIR / "Predicciones"          # <— predicciones aquí
+DIR_HP      = BASE_HP_DIR / "Hiperparametros"       # <— logs aquí
 DIR_PRED.mkdir(parents=True, exist_ok=True)
 # -----------------------------------------------------------------------------
 
@@ -282,8 +282,8 @@ def tune_station(name: str, path_old: Path, path_new: Path) -> None:
 
             if cur_mse < best_mse:
                 best_mse = cur_mse
-                pred_val  = scaler.inverse_transform(pred).to_series()
-                real_val  = scaler.inverse_transform(val).to_series()
+                pred_val  = scaler.inverse_transform(pred).pd_series()
+                real_val  = scaler.inverse_transform(val).pd_series()
                 df_pred   = pd.DataFrame({"real": real_val, "pred": pred_val})
 
                 mpath = DIR_MODEL / f"{name.replace(' ','_')}_{model_name}.pkl"
