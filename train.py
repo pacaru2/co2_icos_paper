@@ -5,6 +5,7 @@
 # Description : Trains multiple forecasting models on daily CO₂ data for selected stations.
 #               Applies tuned hyper-parameters per cluster-representative station.
 # Author      : Pablo Catret
+# Date        : 2025-07-04
 # =============================================================================
 
 from __future__ import annotations
@@ -128,6 +129,7 @@ def build_model(model_name: str, params: Dict) -> "ForecastingModel":
     if model_name == "LightGBM":
         return LightGBMModel(**common, **params)
     if model_name == "RF":
+        common["lags"] = 365
         return RandomForest(**common, **params)
     if model_name == "NHiTS":
         return NHiTSModel(**common, **params)
