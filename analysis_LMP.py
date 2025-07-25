@@ -170,8 +170,15 @@ except Exception:
 ax_hist.set_ylabel("Density")
 ax_hist.set_xlabel("CO2 concentration (ppm)")
 ax_hist.set_ylim(0, 0.18)
-ax_hist.legend(title=None, frameon=True, ncol=1, loc="upper left")
+handles, labels = ax_hist.get_legend_handles_labels()
 
+# Invertir solo los primeros 3 elementos
+n_hist = len(packs) - 1
+handles = handles[:n_hist][::-1] + handles[n_hist:]
+labels = labels[:n_hist][::-1] + labels[n_hist:]
+
+# Aplicar la leyenda reordenada
+ax_hist.legend(handles, labels, title=None, frameon=True, ncol=1, loc="upper left")
 # =============================================================================
 # Step 4.1: Statistical drift tests (Welch, KS, Mann-Whitney)
 # =============================================================================
