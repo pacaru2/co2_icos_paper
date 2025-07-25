@@ -29,6 +29,7 @@ import seaborn as sns
 import matplotlib as mpl
 from scipy.stats import studentized_range
 from pathlib import Path
+from typing import Union, Sequence
 
 warnings.filterwarnings("ignore")
 
@@ -49,6 +50,12 @@ KEEP = {
 }
 
 METRICS = ["MAE","MSE","RMSE","MAPE","sMAPE","RMSLE"]
+MODEL_COLORS = [
+    "#FF6F00", "#FFD700", "#C6FF00", "#4CAF50", "#1DE9B6", "#00BFFF",
+    "#4361EE", "#283593", "#9B59B6", "#E91E63", "#FF4081", "#E63946",
+    "#8D6E63", "#26A69A", "#AD1457", "#5E35B1", "#42A5F5", "#7CB342"
+]
+
 
 # =============================================================================
 # 1. LOAD STATION CLASSIFICATION & BINNING
@@ -78,11 +85,18 @@ metrics = pd.concat(dfs, ignore_index=True)
 metrics["Station"] = metrics["Station"].str.replace(" ", "_", regex=False)
 metrics = metrics.merge(cls, left_on=metrics.Station.str[:3], right_on="Abbreviation")
 
+MEDIA_TO_CONS = {"MediaSimple": "Consensus"}
+metrics["Model"] = metrics["Model"].replace(MEDIA_TO_CONS)
+
+COLOR_MAP = dict(zip(
+    sorted(metrics["Model"].unique()),      # orden alfabético estable
+    MODEL_COLORS * 100                      # se repite si hubiera >18 modelos
+))
 # =============================================================================
 # 3. COMPUTE ROBUST STATISTICS BY GROUP
 # =============================================================================
 
-def robust_summary(group_field: str, out_name: str) -> None:
+def robust_summary(group_field: Union[str, Sequence[str]], out_name: str) -> None:
     """
     Guarda un CSV con:
         <Metric>_median  <Metric>_p25  <Metric>_p75
@@ -97,25 +111,25 @@ def robust_summary(group_field: str, out_name: str) -> None:
                 continue
             res.update({
                 f"{m}_median" : np.median(vals),
-                f"{m}_p25"    : np.percentile(vals, 25),
-                f"{m}_p75"    : np.percentile(vals, 75),
-                f"{m}_MAD"    : median_abs_deviation(vals),
-                f"{m}_IQR"    : np.percentile(vals, 75) - np.percentile(vals, 25),
-                f"{m}_trim10" : trim_mean(vals, 0.10),
+                # f"{m}_p25"    : np.percentile(vals, 25),
+                # f"{m}_p75"    : np.percentile(vals, 75),
+                # f"{m}_MAD"    : median_abs_deviation(vals),
+                # f"{m}_IQR"    : np.percentile(vals, 75) - np.percentile(vals, 25),
+                # f"{m}_trim10" : trim_mean(vals, 0.10),
             })
         return pd.Series(res)
 
     out = (metrics.groupby(group_field, dropna=False)
-                   .apply(one_row)
-                   .reset_index())
+                    .apply(one_row)
+                    .reset_index())
     out.to_csv(OUT_G / f"robust_{out_name}.csv", index=False)
 
 robust_summary("Model",       "Model")
-robust_summary("ESA",         "ESA")
-robust_summary("Koppen",      "Koppen")
-robust_summary("ESAxKoppen",  "ESAxKoppen")
-robust_summary("ElevBin",     "ElevBin")
-robust_summary("LatBin",      "LatBin")
+robust_summary(["Model", "ESA"],       "ModelxESA")
+robust_summary(["Model", "Koppen"],    "ModelxKoppen")
+robust_summary(["Model", "ESAxKoppen"],"ModelxESAxKoppen")
+robust_summary(["Model", "ElevBin"],   "ModelxElevBin")
+robust_summary(["Model", "LatBin"],    "ModelxLatBin")
 
 
 
@@ -173,7 +187,7 @@ def plot_ic(data, stat_name, out_png):
     """
     data_sorted = sorted(data, key=lambda x: (x[0], x[2]))
 
-    labels = [f"{metric} | {model}" for metric, model, *_ in data_sorted]
+    labels = [model for _, model, *_ in data_sorted]
 
     vals = np.array([v for _, _, v, _, _ in data_sorted])
 
@@ -182,11 +196,15 @@ def plot_ic(data, stat_name, out_png):
     err = np.vstack([err_low, err_high])          
     plt.figure(figsize=(10, 0.4 * len(vals) + 1))
     y = np.arange(len(vals))
-    plt.errorbar(vals, y, xerr=err, fmt="o", capsize=3, linewidth=1)
-    plt.yticks(y, labels, fontsize=9)
-    plt.xlabel(f"{stat_name}")
-    plt.title(f"IC 95 % of {stat_name}")
-    plt.grid(axis="x", ls=":")
+    for i, (x, elow, ehi) in enumerate(zip(vals, err[0], err[1])):
+        
+        plt.errorbar(x, y[i], xerr=[[elow], [ehi]],
+                     fmt="o", ms=8, lw=3, capsize=6, capthick=3,
+                     color="#034C3C", ecolor="#034C3C", mec="#034C3C", mfc="#034C3C")
+    plt.yticks(y, labels, fontsize=16)
+    plt.xticks(fontsize=16)
+    plt.xlabel(f"{stat_name}", fontsize=18)
+    plt.grid(axis="x", ls=":", alpha=0.5)
     plt.tight_layout()
     plt.savefig(out_png, dpi=150)
     plt.close()
@@ -215,8 +233,13 @@ print("Bootstrap de valores e IC guardados en:", OUT_T)
 
 diffs = {}
 for metric in METRICS:
-    piv = metrics.pivot_table(index="Station", columns="Model", values=metric)
-    for q, label in zip([25,50,75], ["p25","median","p75"]):
+    for q, label in [(0.25, "p25"), (0.5, "median"), (0.75, "p75")]:
+        piv = (
+            metrics
+            .groupby(["Station", "Model"])[metric]
+            .quantile(q)
+            .unstack()
+        )
         ci = np.zeros((len(piv.columns), len(piv.columns)), bool) 
         for i,a in enumerate(piv.columns):
             for j,b in enumerate(piv.columns):
@@ -285,10 +308,14 @@ for metric in METRICS:
                 xticklabels=labels,
                 yticklabels=labels
             )
+            cbar = ax.collections[0].colorbar
+            cbar.ax.tick_params(labelsize=16)  # Tamaño de los ticks de la barra
+            cbar.set_label("p-Value", fontsize=20)  # Tamaño de la etiqueta
 
-            ax.set_title(f"Nemenyi Test– {metric} – {q_name}", fontsize=13)
-            ax.set_xlabel("Compared Model")
-            ax.set_ylabel("Reference Model")
+            ax.tick_params(axis='both', labelsize=16)
+            # ax.set_title(f"Nemenyi Test– {metric} – {q_name}", fontsize=13)
+            ax.set_xlabel("Compared Model", fontsize=20)
+            ax.set_ylabel("Reference Model", fontsize=20)
             plt.xticks(rotation=45, ha="right")
             plt.tight_layout()
             plt.savefig(OUT_T / f"CD_{metric}_{q_name}_alt.png", dpi=150)
@@ -324,10 +351,10 @@ def cd_diagram(av_ranks: pd.Series, CD: float,
         plt.plot(x, y0, "ko", ms=5)
         if i % 2 == 0:
             plt.text(x, y0 + 0.10, label, rotation=90,
-                     ha="center", va="bottom", fontsize=9)
+                     ha="center", va="bottom", fontsize=10)
         else:
             plt.text(x, y0 - 0.10, label, rotation=90,
-                     ha="center", va="top", fontsize=9)
+                     ha="center", va="top", fontsize=10)
 
     cd_y = y0 - 1.0
     plt.hlines(cd_y, xs.min(), xs.min() + CD, lw=3, color="black")
@@ -350,10 +377,10 @@ def cd_diagram(av_ranks: pd.Series, CD: float,
             plt.hlines(g_y, xs[g0], xs[g1], lw=2.5, color="steelblue")
             g_y += step
 
-    plt.xticks(fontsize=10)
+    plt.xticks(fontsize=16)
     plt.yticks([])
-    plt.xlabel("Average rank (↓ better)", fontsize=11)
-    plt.title(title, fontsize=12)
+    plt.xlabel("Average rank", fontsize=16)
+    # plt.title(title, fontsize=12)
     plt.grid(False)
 
     y_top = y0 + 0.6   # top margin
