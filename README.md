@@ -1,7 +1,7 @@
-# Comparative Analysis of Advanced Machine Learning Models for Forecasting CO₂ Across Ecosystems and Land Covers Using ICOS Data Products
+# An open, reproducible benchmark of daily CO2 forecasting models with applications to GHG monitoring
 
 > **Preprint** – This repository contains the official code and data processing workflows supporting the scientific article:  
-> _Comparative Analysis of Advanced Machine Learning Models for Forecasting CO₂ in Different Ecosystems and Land Covers using ICOS Data and Products_.
+> _An open, reproducible benchmark of daily CO2 forecasting models with applications to GHG monitoring_.
 
 👥 Authors and Affiliations
 This repository and the underlying research were developed by the authors of the preprint:
