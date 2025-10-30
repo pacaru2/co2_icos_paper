@@ -7,7 +7,7 @@
 This repository and the underlying research were developed by the authors of the preprint:
 
 Pablo Catret Ruber<sup>a</sup>, David Garcia-Rodriguez<sup>a</sup>, Domingo J. Iglesias Fuente<sup>b</sup>,
-Juan José Martínez Durá<sup>a</sup>, J. Javier Samper-Zapater<sup>a</sup>, Ernesto López-Baez<sup>c</sup>
+Juan José Martínez Durá<sup>a</sup>, J. Javier Samper-Zapater<sup>a</sup>, Ernesto López-Baeza<sup>c</sup>
 
 <sup>a</sup>University Research Institute on Robotics and Information and Communication Technologies (IRTIC), Universitat de València, Paterna, 46980, Spain
 <sup>b</sup>Valencian Institute of Agricultural Research (IVIA), Moncada, 46113, Spain
