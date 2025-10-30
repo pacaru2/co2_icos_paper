@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-
+import math
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
 # =============================================================================
@@ -101,6 +101,10 @@ def station_and_model(filename: str):
     model   = parts[-2]
     return station, model
 
+def _display_model_name(name: str) -> str:
+    """Normaliza el nombre a mostrar en los plots."""
+    return "Consensus" if name == "MediaSimple" else name
+
 # =============================================================================
 # Load prediction CSVs
 # =============================================================================
@@ -151,9 +155,24 @@ def plot_predictions(real_dict, pred_dict, err_dict):
             continue
         plt.subplot(3, 3, sub); sub += 1
         x = np.arange(1, len(real_dict[station]) + 1)
+
+        # >>> nombre del modelo "best" para esta estación (normalizado)
+        best_model_raw = EXPECTED_MODEL.get(station, [""])[0]
+        best_model_disp = _display_model_name(best_model_raw)
+
         plt.plot(x, real_dict[station], label='Actual', color='k', lw=1.5, alpha=0.8)
-        plt.plot(x, pred_dict[station], label='Forecast', color=PALETTE[idx], lw=2.5)
+        # >>> etiqueta de la predicción incluye el modelo
+        plt.plot(x, pred_dict[station], label=f'Forecast ({best_model_disp})', color=PALETTE[idx], lw=2.5)
+
         plt.title(f"{letters[idx]}) {station}", fontsize=20)
+
+        # >>> cajita dentro del subplot con el modelo best
+        ax = plt.gca()
+        # ax.text(0.02, 0.95, f"Best: {best_model_disp}",
+        #         transform=ax.transAxes, ha='left', va='top',
+        #         fontsize=14, fontweight='bold',
+        #         bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8, edgecolor='gray'))
+
         plt.xticks(np.arange(1, len(x)+1, 73).tolist() + [len(x)])
         plt.xlim((1, len(x)))
         plt.ylim((400, 460))
@@ -171,19 +190,6 @@ def plot_predictions(real_dict, pred_dict, err_dict):
     plt.savefig(out1, dpi=300, bbox_inches='tight'); plt.close()
     logging.info(f"Gráfico guardado → {out1.relative_to(BASE_DIR)}")
 
-    err_data  = [err_dict[s] for s in ORDERED_STATIONS if s in err_dict]
-    err_labels = [s for s in ORDERED_STATIONS if s in err_dict]
-    plt.figure(figsize=(15, 10))
-    sns.boxplot(data=err_data, palette=PALETTE[:len(err_data)])
-    plt.axhline(0, color='red', ls='--', lw=1)
-    plt.xticks(range(len(err_labels)), err_labels, rotation=45, fontsize=20)
-    plt.xlabel('Station', fontsize=24)
-    plt.ylabel('Error (Pred – Actual) (ppm)', fontsize=24)
-    plt.ylim((-30, 30)); plt.yticks(fontsize=20)
-    plt.grid(True, ls='--', lw=0.7, which='both'); plt.tight_layout()
-    out2 = GRAPH_DIR / 'boxplot_prediction_errors.png'
-    plt.savefig(out2); plt.close()
-    logging.info(f"Gráfico guardado → {out2.relative_to(BASE_DIR)}")
 
 # =============================================================================
 # Load and process raw data for seasonal cycle
@@ -349,39 +355,128 @@ def _make_pivots(df: pd.DataFrame):
         pivots[col] = med.pivot(index='Model', columns=col, values='1-MAPE').reset_index()
     return pivots
 
+def _round_down_quarter(x: float) -> float:
+    # Redondea hacia abajo al múltiplo de 0.25 más cercano
+    return np.floor(x * 4.0) / 4.0
+
+def _round_up_quarter(x: float) -> float:
+    # Redondea hacia arriba al múltiplo de 0.25 más cercano
+    return np.ceil(x * 4.0) / 4.0
+
+def _autoscale_limits_quarters(df_pivot, min_span_pp=0.5, pad_pp=0.0):
+    """
+    Calcula límites [lo, hi] lineales que:
+      - incluyen TODOS los valores (sin cuantiles),
+      - se expanden a múltiplos de 0.25,
+      - garantizan un rango mínimo (min_span_pp),
+      - respetan [0, 100].
+
+    min_span_pp: rango mínimo en puntos porcentuales (p. ej., 0.5 → medio punto)
+    pad_pp: expansión opcional adicional antes de redondear (normalmente 0.0 aquí).
+    """
+    vals = df_pivot.drop(columns=['Model']).to_numpy(dtype=float).ravel()
+    vals = vals[~np.isnan(vals)]
+    if vals.size == 0:
+        return (97.0, 100.0)
+
+    vmin = float(vals.min())
+    vmax = float(vals.max())
+
+    # Padding opcional por seguridad
+    lo = max(0.0, vmin - pad_pp)
+    hi = min(100.0, vmax + pad_pp)
+
+    # Redondeo hacia fuera en pasos de 0.25
+    lo = _round_down_quarter(lo)
+    hi = _round_up_quarter(hi)
+
+    # Asegurar rango mínimo; expandir simétrico y volver a encajar a 0.25
+    if hi - lo < min_span_pp:
+        mid = 0.5 * (hi + lo)
+        half = 0.5 * min_span_pp
+        lo = mid - half
+        hi = mid + half
+        lo = _round_down_quarter(max(0.0, lo))
+        hi = _round_up_quarter(min(100.0, hi))
+        # si por redondeo aún quedara corto, fuerza exactamente el rango mínimo
+        if hi - lo < min_span_pp:
+            hi = min(100.0, _round_up_quarter(lo + min_span_pp))
+
+    # Garantizar que siguen incluyendo vmin/vmax por si hubo redondeos límite
+    lo = min(lo, _round_down_quarter(vmin))
+    hi = max(hi, _round_up_quarter(vmax))
+
+    # Evitar que se salga de [0,100]
+    lo = max(0.0, lo)
+    hi = min(100.0, hi)
+
+    return (lo, hi)
+
+
 
 # -----------------------------------------------------------------------------
 def _radar_from_pivot(ax, df_pivot, colors):
-    """Dibuja un radar plot en ax a partir de df_pivot (Model + categorías)."""
     import numpy as np
 
     cats = list(df_pivot.columns[1:])
     N = len(cats)
     angles = [n / float(N) * 2 * np.pi for n in range(N)] + [0]
 
+    # >>> NUEVO: límites lineales por figura, redondeados a 0.25 e incluyendo todos
+    y_min, y_max = _autoscale_limits_quarters(df_pivot, min_span_pp=0.5, pad_pp=0.0)
+
+    # guías radiales ligeras
     for ang in angles[:-1]:
-        ax.plot([ang, ang], [97, 100], color='black', lw=3, alpha=0.5)
+        ax.plot([ang, ang], [y_min, y_max], color='black', lw=1.2, alpha=0.25)
 
     handles, labels = [], []
     for i, row in df_pivot.iterrows():
         vals = row.drop('Model').values.astype(float).tolist()
         vals += vals[:1]
         color = colors[i % len(colors)]
-        line, = ax.plot(angles, vals, lw=5, label=row['Model'], color=color)
-        ax.fill(angles, vals, color=color, alpha=0.1)
+        # líneas algo más finas para menos solapamiento + marcadores discretos
+        line, = ax.plot(angles, vals, lw=2.5, label=row['Model'], color=color, alpha=0.95)
+        ax.plot(angles[:-1], row.drop('Model').values.astype(float),
+                linestyle='None', marker='o', markersize=3, alpha=0.7, color=color)
+        # Relleno muy suave (o comenta esta línea si hay muchos modelos)
+        ax.fill(angles, vals, color=color, alpha=0.04)
+
         handles.append(line); labels.append(row['Model'])
 
-    ax.set_ylim(97, 100)
-    ax.spines['polar'].set_visible(False)
-    radial_ticks = [97.5, 98, 98.5, 99, 99.5, 100]
-    ax.set_yticks(radial_ticks)
-    ax.set_yticklabels([f'{t:.1f}%' for t in radial_ticks], size=28, fontweight='bold')
+    ax.set_ylim(y_min, y_max)
+    ax.spines['polar'].set_visible(True)
+    ax.spines['polar'].set_color('black')
+    ax.spines['polar'].set_linewidth(1.5)
+
+    # >>> Ticks radiales en pasos de 0.25 (múltiplos “redondos”)
+    start = _round_up_quarter(y_min)
+    end   = _round_down_quarter(y_max)
+    if end < start:  # si el rango es < 0.25, muestra al menos bordes
+        rticks = [y_min, y_max]
+    else:
+        rticks = list(np.arange(start, end + 1e-9, 0.25))
+        # incluye explícitamente los límites si no caen en múltiplo exacto
+        if y_min < start:
+            rticks = [y_min] + rticks
+        if y_max > end:
+            rticks = rticks + [y_max]
+
+    ax.set_yticks(rticks)
+    # Etiqueta con 2 decimales sólo si es necesario
+    def _fmt_tick(t):
+        return f'{t:.0f}%' if abs(t - round(t)) < 1e-9 else (f'{t:.2f}%' if (t*4) % 1 else f'{t:.2f}%')
+    ax.set_yticklabels([_fmt_tick(t) for t in rticks], size=19, fontweight='bold')
+
     ax.set_xticks(angles[:-1])
-    ax.set_xticklabels(cats, size=36, fontweight='bold')
+    ax.set_xticklabels(cats, size=24, fontweight='bold')
     for tick in ax.get_xticklabels():
-        tick.set_y(tick.get_position()[1] - 0.14)
+        tick.set_y(tick.get_position()[1] - 0.12)
+    ax.grid(color='black', ls='--', lw=1.5, alpha=1.0)
+    ax.set_axisbelow(False)
 
     return handles, labels
+
+
 
 
 def _plot_all_radars(pivots):
@@ -390,60 +485,92 @@ def _plot_all_radars(pivots):
 
     # --- (ESA + Köppen) ------------------------------------------------------
     fig, axs = plt.subplots(1, 2, figsize=(32, 24), subplot_kw=dict(polar=True))
-    handles, labels = _radar_from_pivot(axs[0], pivots['ESA'], colors)
-    _radar_from_pivot(axs[1], pivots['Koppen'], colors)
-    fig.legend(handles, labels, loc='lower center',
-               bbox_to_anchor=(0.5, 0.125), ncol=len(labels)/2, prop={'size': 40, 'weight': 'bold'})
-    plt.tight_layout(rect=[0, 0.00, 1, 1]); plt.subplots_adjust(wspace=0.5)
+    handles, labels = _radar_from_pivot(axs[0], pivots['ESA'], MODEL_COLORS)
+    _radar_from_pivot(axs[1], pivots['Koppen'], MODEL_COLORS)
+
+    # leyenda compacta (puedes mantenerla o ajustarla)
+    fig.legend(handles, labels,
+            loc='lower center', bbox_to_anchor=(0.5, 0.125),
+            ncol=max(3, int(np.ceil(len(labels) / 2))),   # <= permite 3 filas si hiciera falta
+            prop={'size': 30, 'weight': 'bold'},
+            handlelength=1.8, handletextpad=0.6,
+            columnspacing=0.8, borderaxespad=0.2, frameon=False)
+
+    plt.tight_layout(rect=[0.02, 0.02, 0.98, 1.00])
+    plt.subplots_adjust(wspace=0.5)
     plt.savefig(GRAPH_DIR / 'radar_esa_koppen.png', dpi=500, bbox_inches='tight')
     plt.close()
 
+
     # --- (Altitud + Latitud) -------------------------------------------------
     fig, axs = plt.subplots(1, 2, figsize=(32, 24), subplot_kw=dict(polar=True))
-    handles, labels = _radar_from_pivot(axs[0], pivots['level_group'], colors)
-    _radar_from_pivot(axs[1], pivots['latitude_group'], colors)
-    fig.legend(handles, labels, loc='lower center',
-               bbox_to_anchor=(0.5, 0.125), ncol=len(labels)/2, prop={'size': 40, 'weight': 'bold'})
-    plt.tight_layout(rect=[0, 0.00, 1, 1]); plt.subplots_adjust(wspace=0.5)
+    handles, labels = _radar_from_pivot(axs[0], pivots['level_group'], MODEL_COLORS)
+    _radar_from_pivot(axs[1], pivots['latitude_group'], MODEL_COLORS)
+
+    # Fuerza 3 filas: ncol = ceil(len(labels) / 3)
+    fig.legend(handles, labels,
+            loc='lower center', bbox_to_anchor=(0.5, 0.125),
+            ncol=max(1, int(np.ceil(len(labels) / 2))),   # <<< 3 filas
+            prop={'size': 30, 'weight': 'bold'},
+            handlelength=1.8, handletextpad=0.6,
+            columnspacing=0.8, borderaxespad=0.2, frameon=False)
+
+    plt.tight_layout(rect=[0.02, 0.02, 0.98, 1.00])  # deja más hueco abajo para 3 filas
+    plt.subplots_adjust(wspace=0.5)
     plt.savefig(GRAPH_DIR / 'radar_alt_lat.png', dpi=500, bbox_inches='tight')
     plt.close()
 
+
     # --- combinación Köppen × ESA -------------------------------------------
-    piv = pivots['Koppen_ESA']
-    cats = list(piv.columns[1:])
+    fig, ax = plt.subplots(figsize=(32, 32), subplot_kw=dict(polar=True))
+
+    # Extrae datos y categorías
+    df_combo = pivots['Koppen_ESA']
+    cats = list(df_combo.columns[1:])
     N = len(cats)
     angles = [n / float(N) * 2 * np.pi for n in range(N)] + [0]
 
-    fig, ax = plt.subplots(figsize=(32, 32), subplot_kw=dict(polar=True))
-    # líneas radiales
+    # --- Límites fijos refinados ---
+    y_min, y_max = 97.25, 99.75  # límites “redondeados” a 0.25
+    ticks = [97.75, 98.25, 98.75, 99.25, 99.75]  # cada 0.5 %
+
+    # --- Guías radiales suaves ---
     for ang in angles[:-1]:
-        ax.plot([ang, ang], [97, 100], color='black', lw=3, alpha=0.5)
+        ax.plot([ang, ang], [y_min, y_max], color='black', lw=1.2, alpha=0.25)
 
-    handles, labels = [], []
-    for i, row in piv.iterrows():
-        vals = row.drop('Model').values.astype(float).tolist() + \
-               [row.drop('Model').values[0]]
-        color = colors[i % len(colors)]
-        line, = ax.plot(angles, vals, lw=5, color=color, label=row['Model'])
-        ax.fill(angles, vals, color=color, alpha=0.1)
-        handles.append(line); labels.append(row['Model'])
+    # --- Polígonos de modelos ---
+    for i, row in df_combo.iterrows():
+        vals = row.drop('Model').values.astype(float).tolist() + [row.drop('Model').values[0]]
+        color = MODEL_COLORS[i % len(MODEL_COLORS)]
+        ax.plot(angles, vals, lw=2.5, alpha=0.95, color=color)
+        ax.plot(angles[:-1], row.drop('Model').values.astype(float),
+                linestyle='None', marker='o', markersize=3, alpha=0.8, color=color)
+        ax.fill(angles, vals, color=color, alpha=0.04)
 
-    ax.set_ylim(97, 100); ax.spines['polar'].set_visible(False)
-    ticks = [97.5, 98, 98.5, 99, 99.5, 100]
-    ax.set_yticks(ticks); ax.set_yticklabels([])
-    # poner etiquetas de ticks radiales manualmente
-    theta = np.deg2rad(46)
-    for t in ticks:
-        ax.text(theta, t, f'{t:.1f}%', ha='left', va='center', size=44, fontweight='bold')
+    # --- Escala radial y etiquetas ---
+    ax.set_ylim(y_min, y_max)
+    ax.spines['polar'].set_visible(True)
+    ax.spines['polar'].set_color('black')
+    ax.spines['polar'].set_linewidth(1.5)
 
-    ax.grid(ls='--', lw=1.5, alpha=0.5)
-    ax.set_xticks(angles[:-1]);ax.set_xticklabels(cats, size=45, fontweight='bold')
+    ax.set_yticks(ticks)
+    ax.set_yticklabels([f"{t:.2f}%" for t in ticks], size=32, fontweight='bold')
+
+    # --- Ejes angulares (categorías) ---
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels(cats, size=32, fontweight='bold')
     for tick in ax.get_xticklabels():
-        tick.set_y(tick.get_position()[1] - 0.14)
+        tick.set_y(tick.get_position()[1] - 0.12)
 
-    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    # --- Cuadrícula y estilo final ---
+    ax.grid(color='black', ls='--', lw=1.5, alpha=1.0)
+    ax.set_axisbelow(False)
+    plt.tight_layout(rect=[0.02, 0.02, 0.98, 0.98])
     plt.savefig(GRAPH_DIR / 'radar_koppen_esa_combo.png', dpi=500, bbox_inches='tight')
     plt.close()
+
+
+
 
 
 # -----------------------------------------------------------------------------
