@@ -40,6 +40,7 @@ Juan José Martínez Durá<sup>a</sup>, J. Javier Samper-Zapater<sup>a</sup>, Er
 | `train_metalearner.py`         | Root     | Builds and evaluates a global meta-learner (stacking) using validation predictions           |
 | `hybridization.py`             | Root     | Combines model predictions using hybrid and ensemble strategies; evaluates final performance |
 | `statistical_tests.py`         | Root     | Performs statistical tests (e.g., Nemenyi test) and generates critical difference plots      |
+| `new_metrics.py`               | Root     | Computes the MaxAE metric for all test forecasts and summarizes results                      |
 | `analysis_LMP.py`              | Root     | Runs exploratory and comparative analyses of model performance across ecosystems             |
 | `graphs.py`                    | Root     | Generates visualizations of model metrics and predictions for selected stations              |
 
@@ -555,5 +556,38 @@ python analysis_LMP.py
 
 ---
 
+## 📏 Step 9 – MaxAE Calculation and Summary
+
+This optional but recommended step computes the **Maximum Absolute Error (MaxAE)** for each test forecast, appends it to the existing model metrics, and generates summary statistics by model type. This helps identify worst-case prediction errors, which are critical for climate and risk-sensitive applications.
+
+### 📂 Script: `new_metrics.py`
+
+This script performs the following:
+
+1. **Scans test forecast files** (`*_TEST.csv`) in `EntrenamientoModelos/predicciones/`.
+2. **Computes MaxAE** for each model and station.
+3. **Updates the corresponding metrics file** (`*_METRICS.csv`) with a new `MaxAE` column.
+4. **Stores enriched files** in:
+   `EntrenamientoModelos/metricas/max_ae/`
+5. **Generates summary tables** and plots:
+
+   * Median, Q1, Q3 of MaxAE per model → `median_maxae_by_model.csv`
+   * Combined metrics table → `all_metrics_maxae.csv`
+
+### 📤 Outputs Generated
+
+* 📄 `EntrenamientoModelos/metricas/max_ae/{station}_{model}_METRICS.csv`: enriched metrics with MaxAE
+* 📄 `EntrenamientoModelos/metricas/max_ae/all_metrics_maxae.csv`: concatenated metrics
+* 📄 `EntrenamientoModelos/metricas/max_ae/summaries/median_maxae_by_model.csv`: summary table
+
+### ▶️ How to run
+
+```bash
+python new_metrics.py
+```
+
+> ℹ️ Only stations in the whitelist are included in the summary (see `STATION_WHITELIST` inside the script).
+
+---
 
 
